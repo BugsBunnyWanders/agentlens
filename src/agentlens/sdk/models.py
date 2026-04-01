@@ -20,6 +20,12 @@ class SpanKind(str, Enum):
     CUSTOM = "custom"
 
 
+class ReplayMode(str, Enum):
+    DETERMINISTIC = "deterministic"
+    LIVE = "live"
+    HYBRID = "hybrid"
+
+
 class Span(BaseModel):
     """A single step within a trace."""
 
@@ -44,6 +50,7 @@ class Span(BaseModel):
     sequence: int
     is_mutated: bool = False
     is_stale: bool = False  # True if upstream span was mutated; output may be outdated
+    is_reexecuted: bool = False  # True if this span was actually re-executed during live replay
 
     @field_serializer("input", "output")
     @classmethod
@@ -85,6 +92,7 @@ class ReplayRequest(BaseModel):
 
     trace_id: str
     mutations: list[SpanMutation]
+    mode: ReplayMode = ReplayMode.DETERMINISTIC
 
 
 class ReplayResult(BaseModel):
@@ -94,3 +102,4 @@ class ReplayResult(BaseModel):
     replay_trace: Trace
     mutated_span_ids: list[str]
     diverged_at_span_id: str
+    mode: ReplayMode = ReplayMode.DETERMINISTIC

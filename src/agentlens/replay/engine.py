@@ -1,24 +1,16 @@
-"""Deterministic replay engine — pure data transformation, no live API calls."""
+"""Replay engine — dispatches to deterministic or live replay."""
 
 from __future__ import annotations
 
 from uuid import uuid4
 
-from agentlens.sdk.models import ReplayRequest, ReplayResult, Trace
+from agentlens.sdk.models import ReplayMode, ReplayRequest, ReplayResult, Trace
 
 
 def replay_deterministic(original_trace: Trace, request: ReplayRequest) -> ReplayResult:
-    """Fork a trace by applying mutations and producing a new trace.
-
-    In deterministic mode, this is purely a data transformation:
-    - Spans before the mutation point are copied as-is
-    - Mutated spans get their output replaced and marked is_mutated=True
-    - Spans after the mutation point are copied as-is but marked is_stale=True
-      (their output was recorded with the OLD input and would differ if re-executed)
-    """
+    """Fork a trace by applying mutations — pure data transformation, no execution."""
     mutation_map = {m.span_id: m.new_output for m in request.mutations}
 
-    # Find earliest mutation point
     earliest_seq = float("inf")
     earliest_span_id = ""
     for span in original_trace.spans:
@@ -26,7 +18,6 @@ def replay_deterministic(original_trace: Trace, request: ReplayRequest) -> Repla
             earliest_seq = span.sequence
             earliest_span_id = span.id
 
-    # Build old->new ID mapping
     new_trace_id = str(uuid4())
     id_remap: dict[str, str] = {}
     new_spans = []
@@ -42,12 +33,10 @@ def replay_deterministic(original_trace: Trace, request: ReplayRequest) -> Repla
             new_span.output = mutation_map[span.id]
             new_span.is_mutated = True
         elif span.sequence > earliest_seq:
-            # Downstream of the mutation — output is stale
             new_span.is_stale = True
 
         new_spans.append(new_span)
 
-    # Remap parent_span_id references
     for new_span in new_spans:
         if new_span.parent_span_id and new_span.parent_span_id in id_remap:
             new_span.parent_span_id = id_remap[new_span.parent_span_id]
@@ -71,4 +60,15 @@ def replay_deterministic(original_trace: Trace, request: ReplayRequest) -> Repla
         replay_trace=replay_trace,
         mutated_span_ids=list(mutation_map.keys()),
         diverged_at_span_id=earliest_span_id,
+        mode=ReplayMode.DETERMINISTIC,
     )
+
+
+async def replay(original_trace: Trace, request: ReplayRequest) -> ReplayResult:
+    """Dispatch to the appropriate replay engine based on mode."""
+    if request.mode == ReplayMode.DETERMINISTIC:
+        return replay_deterministic(original_trace, request)
+    else:
+        from agentlens.replay.live import replay_live
+
+        return await replay_live(original_trace, request)

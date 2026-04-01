@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS spans (
     sequence INTEGER NOT NULL,
     is_mutated INTEGER NOT NULL DEFAULT 0,
     is_stale INTEGER NOT NULL DEFAULT 0,
+    is_reexecuted INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -96,13 +97,14 @@ class Recorder:
             await self._db.execute("PRAGMA journal_mode=WAL")
             await self._db.execute("PRAGMA foreign_keys=ON")
             await self._db.executescript(SCHEMA_SQL)
-            # Migration: add is_stale column if missing
-            try:
-                await self._db.execute(
-                    "ALTER TABLE spans ADD COLUMN is_stale INTEGER NOT NULL DEFAULT 0"
-                )
-            except Exception:
-                pass  # column already exists
+            # Migrations: add columns if missing
+            for col in ("is_stale", "is_reexecuted"):
+                try:
+                    await self._db.execute(
+                        f"ALTER TABLE spans ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
+                    )
+                except Exception:
+                    pass  # column already exists
             await self._db.commit()
         return self._db
 
@@ -131,8 +133,8 @@ class Recorder:
                 """INSERT OR REPLACE INTO spans
                    (id, trace_id, parent_span_id, kind, name, started_at, ended_at,
                     status, input, output, error, model, tokens_in, tokens_out,
-                    cost_usd, sequence, is_mutated, is_stale)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    cost_usd, sequence, is_mutated, is_stale, is_reexecuted)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     span.id,
                     span.trace_id,
@@ -152,6 +154,7 @@ class Recorder:
                     span.sequence,
                     1 if span.is_mutated else 0,
                     1 if span.is_stale else 0,
+                    1 if span.is_reexecuted else 0,
                 ),
             )
         await db.commit()

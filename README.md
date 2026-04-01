@@ -2,7 +2,7 @@
 
 **Local-first AI agent debugger with fork & replay.**
 
-AgentLens captures execution traces from multi-step AI agent workflows, visualizes them in a local web UI, and lets you fork a trace at any step to edit its output and compare results.
+AgentLens captures execution traces from multi-step AI agent workflows, visualizes them in a local web UI, and lets you fork a trace at any step, edit its output, and **re-execute downstream steps with real API calls** to see what would have happened differently.
 
 Think of it as **Chrome DevTools for AI agents** — the Network tab + time-travel debugging, but for LLM agent workflows.
 
@@ -34,7 +34,7 @@ agentlens serve
 
 ### 1. Instrument Your Code
 
-Add decorators to your existing agent functions:
+Add decorators to your existing agent functions — zero logic changes:
 
 ```python
 import agentlens
@@ -84,18 +84,28 @@ In the web UI:
 1. Click a trace to see its span timeline
 2. Select a span and click **Fork & Replay**
 3. Edit the span's output in the code editor
-4. Click **Replay from here** to create a forked trace
-5. View the side-by-side comparison
+4. Choose a **replay mode**
+5. Click **Replay from here** to create a forked trace
+6. View the side-by-side comparison with diff highlighting
 
-> **v0.1 Note:** Replay is deterministic — it edits the span output and marks downstream spans as stale. Live re-execution (where downstream LLM/tool calls actually re-run with the new data) is planned for v0.2.
+### Replay Modes
+
+| Mode | What happens | Cost | Use case |
+|------|-------------|------|----------|
+| **Deterministic** | Only the edited span changes. Downstream spans are marked stale. | Free | Quick data annotation, bookmarking bugs |
+| **Live** | All downstream spans re-execute with real API calls. | Token costs | "What would the LLM say if the tool returned different data?" |
+| **Hybrid** | LLM spans re-execute live, tool spans return recorded data. | Lower token costs | Test LLM behavior with changed context, no tool side effects |
+
+**Example:** Your weather tool returned "sunny" but the real weather is a blizzard. Fork the weather span, change it to blizzard, select **Live** mode. The LLM re-generates the itinerary accounting for severe weather — with real API calls, producing genuinely different output.
 
 ## Features
 
 - **Zero-config tracing** — `pip install` and add decorators, traces go to local SQLite
 - **Framework-agnostic** — works with any Python agent (LangGraph, CrewAI, OpenAI, Anthropic, custom)
+- **Live replay** — re-execute downstream spans with real API calls after editing a span's output
+- **Hybrid replay** — LLM calls go live, tool calls use recorded data (no side effects)
 - **Async-first** — non-blocking trace capture, works in both sync and async code
 - **Local-first** — no cloud accounts, no telemetry, everything stays on your machine
-- **Fork & replay** — edit any span's output and see the forked trace side-by-side
 - **Keyboard navigable** — arrow keys / j/k to browse spans, `e` to edit
 
 ## Architecture
@@ -106,13 +116,22 @@ Your Agent Code
   --> Async queue --> SQLite (~/.agentlens/traces.db)
   --> FastAPI serves JSON API + bundled React frontend
   --> localhost:7600
+
+Fork & Replay (Live mode):
+  --> Load original trace, apply mutations
+  --> Re-import user's function, set ReplayContext
+  --> Decorators intercept each span:
+      Before mutation: execute normally
+      At mutation: return edited output
+      After mutation: execute live (real API calls)
+  --> Save new trace for side-by-side comparison
 ```
 
 ## Web UI Pages
 
 - **Trace List** — all captured traces with status, duration, token count, cost
-- **Trace Detail** — span timeline (left) + selected span I/O (right)
-- **Replay Comparison** — side-by-side original vs forked trace with diff highlighting
+- **Trace Detail** — span timeline (left) + selected span I/O (right), keyboard navigable
+- **Replay Comparison** — side-by-side original vs forked trace, with RE-EXECUTED / EDITED / STALE badges
 
 ## Configuration
 
@@ -146,13 +165,16 @@ cd frontend && npx tsc --noEmit
 
 ```
 src/agentlens/
-  sdk/          # Tracing SDK (decorators, context management, SQLite writer)
-  server/       # FastAPI API + static file serving
-  replay/       # Fork & replay engine
-  cli.py        # CLI entry point
+  sdk/              # Tracing SDK (decorators, context management, SQLite writer)
+  server/           # FastAPI API + static file serving
+  replay/
+    engine.py       # Replay dispatcher (deterministic vs live)
+    live.py         # Live replay engine (re-executes user functions)
+    context.py      # ReplayContext (decorators check this at runtime)
+  cli.py            # CLI entry point
 
-frontend/       # React + TypeScript + Tailwind UI (Vite)
-examples/       # Working examples
+frontend/           # React + TypeScript + Tailwind UI (Vite)
+examples/           # Working examples (basic + OpenAI trip planner)
 ```
 
 ## Tech Stack

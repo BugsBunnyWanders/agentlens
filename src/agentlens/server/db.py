@@ -19,12 +19,13 @@ async def _get_connection() -> aiosqlite.Connection:
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA foreign_keys=ON")
     await db.executescript(SCHEMA_SQL)
-    try:
-        await db.execute(
-            "ALTER TABLE spans ADD COLUMN is_stale INTEGER NOT NULL DEFAULT 0"
-        )
-    except Exception:
-        pass  # column already exists
+    for col in ("is_stale", "is_reexecuted"):
+        try:
+            await db.execute(
+                f"ALTER TABLE spans ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
+            )
+        except Exception:
+            pass  # column already exists
     await db.commit()
     return db
 
@@ -83,6 +84,7 @@ def _row_to_span(row: aiosqlite.Row) -> Span:
         sequence=row["sequence"],
         is_mutated=bool(row["is_mutated"]),
         is_stale=bool(row["is_stale"]) if "is_stale" in row.keys() else False,
+        is_reexecuted=bool(row["is_reexecuted"]) if "is_reexecuted" in row.keys() else False,
     )
 
 
@@ -168,8 +170,8 @@ async def save_trace(trace: Trace) -> None:
                 """INSERT OR REPLACE INTO spans
                    (id, trace_id, parent_span_id, kind, name, started_at, ended_at,
                     status, input, output, error, model, tokens_in, tokens_out,
-                    cost_usd, sequence, is_mutated, is_stale)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    cost_usd, sequence, is_mutated, is_stale, is_reexecuted)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     span.id,
                     span.trace_id,
@@ -189,6 +191,7 @@ async def save_trace(trace: Trace) -> None:
                     span.sequence,
                     1 if span.is_mutated else 0,
                     1 if span.is_stale else 0,
+                    1 if span.is_reexecuted else 0,
                 ),
             )
         await db.commit()

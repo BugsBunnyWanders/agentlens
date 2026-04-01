@@ -16,6 +16,7 @@ logger = logging.getLogger("agentlens")
 
 _current_trace: ContextVar[TraceContext | None] = ContextVar("_current_trace", default=None)
 _current_span: ContextVar[SpanContext | None] = ContextVar("_current_span", default=None)
+_replay_context: ContextVar[Any] = ContextVar("_replay_context", default=None)  # ReplayContext | None
 
 
 def _is_enabled() -> bool:
@@ -53,6 +54,7 @@ class SpanContext:
         self.tokens_in: int | None = None
         self.tokens_out: int | None = None
         self.cost_usd: float | None = None
+        self.is_reexecuted: bool = False
         self._trace_ctx = trace_ctx
         self._span_token: Token | None = None
 
@@ -87,6 +89,7 @@ class SpanContext:
             tokens_out=self.tokens_out,
             cost_usd=self.cost_usd,
             sequence=self.sequence,
+            is_reexecuted=self.is_reexecuted,
         )
 
     def __enter__(self) -> SpanContext:
@@ -183,6 +186,16 @@ def get_current_trace() -> TraceContext | None:
 
 def get_current_span() -> SpanContext | None:
     return _current_span.get()
+
+
+def get_replay_context() -> Any:
+    """Get the active ReplayContext, or None."""
+    return _replay_context.get()
+
+
+def set_replay_context(ctx: Any) -> Token:
+    """Set the active ReplayContext. Returns token for reset."""
+    return _replay_context.set(ctx)
 
 
 @contextmanager
