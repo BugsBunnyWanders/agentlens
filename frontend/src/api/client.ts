@@ -3,6 +3,7 @@ import type {
   TraceListResponse,
   HealthResponse,
   ReplayResult,
+  ReplayMode,
   SpanMutation,
 } from "../types";
 
@@ -64,10 +65,10 @@ export const api = {
     return request<void>(`/traces/${id}`, { method: "DELETE" });
   },
 
-  replay(traceId: string, mutations: SpanMutation[]): Promise<ReplayResult> {
+  replay(traceId: string, mutations: SpanMutation[], mode: ReplayMode = "deterministic"): Promise<ReplayResult> {
     return request<ReplayResult>("/replay", {
       method: "POST",
-      body: JSON.stringify({ trace_id: traceId, mutations }),
+      body: JSON.stringify({ trace_id: traceId, mutations, mode }),
     });
   },
 

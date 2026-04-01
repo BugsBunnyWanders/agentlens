@@ -23,6 +23,7 @@ export function ReplaySpanDiff({
   const changed = hasOutputChanged(originalSpan, replaySpan);
   const mutated = replaySpan.is_mutated;
   const stale = replaySpan.is_stale;
+  const reexecuted = replaySpan.is_reexecuted;
 
   let bgClass = "";
   let borderClass = "border-transparent";
@@ -32,6 +33,12 @@ export function ReplaySpanDiff({
   } else if (mutated) {
     bgClass = "bg-blue-900/20";
     borderClass = "border-blue-500";
+  } else if (reexecuted && changed) {
+    bgClass = "bg-green-900/15";
+    borderClass = "border-green-500";
+  } else if (reexecuted) {
+    bgClass = "bg-green-900/10";
+    borderClass = "border-green-500/50";
   } else if (stale) {
     bgClass = "bg-amber-900/10";
     borderClass = "border-amber-500/50";
@@ -62,12 +69,17 @@ export function ReplaySpanDiff({
             EDITED
           </span>
         )}
-        {stale && (
+        {reexecuted && (
+          <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/30 px-1.5 py-0.5 rounded font-medium shrink-0">
+            RE-EXECUTED
+          </span>
+        )}
+        {stale && !reexecuted && (
           <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded font-medium shrink-0">
             NEEDS RE-RUN
           </span>
         )}
-        {changed && !mutated && !stale && (
+        {changed && !mutated && !stale && !reexecuted && (
           <span className="text-[10px] text-amber-400 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 rounded font-medium shrink-0">
             CHANGED
           </span>

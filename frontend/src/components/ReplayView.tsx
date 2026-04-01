@@ -34,6 +34,8 @@ export function ReplayView() {
   const replaySpans = [...replay.spans].sort((a, b) => a.sequence - b.sequence);
 
   const hasStaleSpans = replaySpans.some((s) => s.is_stale);
+  const hasReexecuted = replaySpans.some((s) => s.is_reexecuted);
+  const replayMode = (replay?.metadata as Record<string, unknown>)?.replay_mode as string | undefined;
 
   const selectedOriginal = selectedSeq != null
     ? originalSpans.find((s) => s.sequence === selectedSeq)
@@ -57,16 +59,30 @@ export function ReplayView() {
         </h1>
       </div>
 
-      {hasStaleSpans && (
+      {hasReexecuted && (
+        <div className="bg-green-900/15 border border-green-700/30 rounded-lg px-4 py-3 mb-4 flex items-start gap-3">
+          <span className="text-green-400 text-lg leading-none mt-0.5">&#9889;</span>
+          <div>
+            <div className="text-sm font-medium text-green-300">
+              {replayMode === "hybrid" ? "Hybrid" : "Live"} Replay
+            </div>
+            <div className="text-xs text-green-400/80 mt-0.5">
+              Downstream spans marked
+              <span className="mx-1 text-[10px] text-green-400 bg-green-500/10 border border-green-500/30 px-1.5 py-0.5 rounded font-medium">RE-EXECUTED</span>
+              were actually re-run with real {replayMode === "hybrid" ? "LLM" : "API"} calls. Their output reflects the mutated input.
+            </div>
+          </div>
+        </div>
+      )}
+      {hasStaleSpans && !hasReexecuted && (
         <div className="bg-amber-900/15 border border-amber-700/30 rounded-lg px-4 py-3 mb-4 flex items-start gap-3">
           <span className="text-amber-400 text-lg leading-none mt-0.5">&#9888;</span>
           <div>
-            <div className="text-sm font-medium text-amber-300">Deterministic Replay Mode</div>
+            <div className="text-sm font-medium text-amber-300">Deterministic Replay</div>
             <div className="text-xs text-amber-400/80 mt-0.5">
               Only the edited span's output was changed. Downstream spans marked
               <span className="mx-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded font-medium">NEEDS RE-RUN</span>
-              show their <strong>original recorded output</strong>, not what they would produce with the new input.
-              Live re-execution is coming in v0.2.
+              show their <strong>original recorded output</strong>. Use Live or Hybrid mode to re-execute them.
             </div>
           </div>
         </div>
@@ -125,9 +141,14 @@ export function ReplayView() {
                   EDITED
                 </span>
               )}
-              {selectedReplay.is_stale && (
+              {selectedReplay.is_reexecuted && (
+                <span className="ml-2 text-green-400 bg-green-500/10 border border-green-500/30 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                  RE-EXECUTED
+                </span>
+              )}
+              {selectedReplay.is_stale && !selectedReplay.is_reexecuted && (
                 <span className="ml-2 text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                  STALE &mdash; same as original (needs live re-execution)
+                  STALE &mdash; same as original
                 </span>
               )}
             </div>

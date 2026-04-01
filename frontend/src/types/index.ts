@@ -21,6 +21,7 @@ export interface Span {
   sequence: number;
   is_mutated: boolean;
   is_stale: boolean;
+  is_reexecuted: boolean;
 }
 
 export interface Trace {
@@ -37,6 +38,8 @@ export interface Trace {
   parent_trace_id: string | null;
 }
 
+export type ReplayMode = "deterministic" | "live" | "hybrid";
+
 export interface SpanMutation {
   span_id: string;
   new_output: unknown;
@@ -45,6 +48,7 @@ export interface SpanMutation {
 export interface ReplayRequest {
   trace_id: string;
   mutations: SpanMutation[];
+  mode: ReplayMode;
 }
 
 export interface ReplayResult {
@@ -52,6 +56,7 @@ export interface ReplayResult {
   replay_trace: Trace;
   mutated_span_ids: string[];
   diverged_at_span_id: string;
+  mode: ReplayMode;
 }
 
 export interface TraceListResponse {
