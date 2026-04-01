@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Built frontend (served by FastAPI)
+src/agentlens/server/static/
+
+# AgentLens data
+.agentlens/
+
+# Test
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Claude Code
+.claude/
+CLAUDE.md
