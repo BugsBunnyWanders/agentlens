@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentlens-xray"
-version = "0.3.0"
+version = "0.3.2"
 description = "Local-first AI agent debugger with fork & replay"
 readme = "README.md"
 license = "MIT"

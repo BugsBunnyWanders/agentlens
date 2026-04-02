@@ -3,7 +3,7 @@
 from agentlens.sdk.decorators import trace, wrap_llm, wrap_tool
 from agentlens.sdk.tracer import start_trace, start_trace_async
 
-__version__ = "0.3.0"
+__version__ = "0.3.2"
 __all__ = [
     "trace", "wrap_llm", "wrap_tool",
     "start_trace", "start_trace_async",

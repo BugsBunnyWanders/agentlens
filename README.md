@@ -8,6 +8,10 @@ Think of it as **Chrome DevTools for AI agents** — the Network tab + time-trav
 
 > **Install:** `pip install agentlens-xray` — the import name is `agentlens`.
 
+### Demo
+
+https://github.com/user-attachments/assets/416a853c-4915-4a30-8590-f50fd0a7dc47
+
 ## The Problem
 
 AI agents are non-deterministic. When a multi-step agent fails at step 7 of 12, developers currently have no way to:
