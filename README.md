@@ -6,6 +6,8 @@ AgentLens captures execution traces from multi-step AI agent workflows, visualiz
 
 Think of it as **Chrome DevTools for AI agents** — the Network tab + time-travel debugging, but for LLM agent workflows.
 
+> **Install:** `pip install agentlens-xray` — the import name is `agentlens`.
+
 ## The Problem
 
 AI agents are non-deterministic. When a multi-step agent fails at step 7 of 12, developers currently have no way to:
@@ -17,7 +19,7 @@ AI agents are non-deterministic. When a multi-step agent fails at step 7 of 12, 
 ## Quick Start
 
 ```bash
-pip install -e .
+pip install agentlens-xray
 python examples/basic_agent.py   # creates a sample trace (no API keys needed)
 agentlens serve                  # opens the UI at localhost:7600
 ```
@@ -98,10 +100,70 @@ In the web UI:
 
 **Example:** Your weather tool returned "sunny" but the real weather is a blizzard. Fork the weather span, change it to blizzard, select **Live** mode. The LLM re-generates the itinerary accounting for severe weather — with real API calls, producing genuinely different output.
 
+## Framework Integrations
+
+AgentLens works with popular frameworks out of the box — no decorators needed.
+
+### OpenAI / Anthropic SDK (wrap your client)
+
+```bash
+pip install agentlens-xray[openai]    # or agentlens-xray[anthropic]
+```
+
+```python
+from openai import OpenAI
+from agentlens import wrap_openai
+
+client = wrap_openai(OpenAI())
+# All chat.completions.create() calls are now traced automatically
+response = client.chat.completions.create(model="gpt-4o", messages=[...])
+```
+
+### LangChain / LangGraph
+
+```bash
+pip install agentlens-xray[langchain]
+```
+
+```python
+from agentlens.integrations.langchain import AgentLensCallbackHandler
+
+with AgentLensCallbackHandler(trace_name="my_agent") as handler:
+    chain.invoke(input, config={"callbacks": [handler]})
+    # Full trace with LLM, tool, retrieval, and chain spans
+```
+
+### OpenAI Agents SDK
+
+```bash
+pip install agentlens-xray[openai-agents]
+```
+
+```python
+from agentlens.integrations.openai_agents import install_agentlens_tracing
+
+install_agentlens_tracing()  # One line — all agent runs traced automatically
+result = await Runner.run(agent, input="Process this refund")
+```
+
+### CrewAI
+
+```bash
+pip install agentlens-xray[crewai]
+```
+
+```python
+from agentlens.integrations.crewai import CrewAIHandler
+
+handler = CrewAIHandler(trace_name="my_crew")
+crew = Crew(agents=[...], tasks=[...], callbacks=[handler])
+crew.kickoff()  # Crew, agent, and task spans captured
+```
+
 ## Features
 
-- **Zero-config tracing** — `pip install` and add decorators, traces go to local SQLite
-- **Framework-agnostic** — works with any Python agent (LangGraph, CrewAI, OpenAI, Anthropic, custom)
+- **Zero-config tracing** — `pip install agentlens-xray` and add decorators or use framework integrations
+- **Framework integrations** — LangChain, LangGraph, OpenAI Agents SDK, CrewAI, raw SDKs
 - **Live replay** — re-execute downstream spans with real API calls after editing a span's output
 - **Hybrid replay** — LLM calls go live, tool calls use recorded data (no side effects)
 - **Async-first** — non-blocking trace capture, works in both sync and async code

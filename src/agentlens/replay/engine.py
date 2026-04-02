@@ -68,7 +68,9 @@ async def replay(original_trace: Trace, request: ReplayRequest) -> ReplayResult:
     """Dispatch to the appropriate replay engine based on mode."""
     if request.mode == ReplayMode.DETERMINISTIC:
         return replay_deterministic(original_trace, request)
-    else:
-        from agentlens.replay.live import replay_live
 
-        return await replay_live(original_trace, request)
+    # Use span-level replay — works for ALL trace types (LangChain, client-wrapped, etc.)
+    # by calling LLM APIs directly with modified inputs
+    from agentlens.replay.span_replay import replay_span_level
+
+    return await replay_span_level(original_trace, request)

@@ -3,12 +3,29 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentlens"
-version = "0.1.0"
+name = "agentlens-xray"
+version = "0.3.0"
 description = "Local-first AI agent debugger with fork & replay"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+authors = [
+    { name = "Saswat Ray", email = "saswatray2505@gmail.com" },
+]
+keywords = ["ai", "agents", "debugging", "tracing", "llm", "replay", "observability"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.0",
     "aiosqlite>=0.19",
@@ -18,12 +35,35 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+langchain = [
+    "langchain-core>=0.1.0",
+]
+openai-agents = [
+    "openai-agents>=0.1.0",
+]
+crewai = [
+    "langchain-core>=0.1.0",
+    "crewai>=0.30.0",
+]
+openai = [
+    "openai>=1.0.0",
+]
+anthropic = [
+    "anthropic>=0.20.0",
+]
+all-integrations = [
+    "langchain-core>=0.1.0",
+    "openai>=1.0.0",
+    "anthropic>=0.20.0",
+]
 dev = [
     "pytest",
     "pytest-asyncio",
     "httpx",
     "mypy",
     "ruff",
+    "build",
+    "twine",
 ]
 
 [project.scripts]
@@ -34,6 +74,11 @@ packages = ["src/agentlens"]
 
 [tool.hatch.build]
 artifacts = ["src/agentlens/server/static/**"]
+
+[project.urls]
+Homepage = "https://github.com/BugsBunnyWanders/agentlens"
+Repository = "https://github.com/BugsBunnyWanders/agentlens"
+Issues = "https://github.com/BugsBunnyWanders/agentlens/issues"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
