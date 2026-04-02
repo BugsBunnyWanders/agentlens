@@ -27,15 +27,31 @@ class _ReplaySkip:
         self.output = output
 
 
+_SENSITIVE_PARAMS = {
+    "api_key", "secret", "password", "token", "secret_key",
+    "api_secret", "authorization", "access_token", "refresh_token",
+}
+
+
 def _capture_input(fn: Callable, args: tuple, kwargs: dict) -> Any:
-    """Capture function arguments as a serializable dict."""
+    """Capture function arguments as a serializable dict.
+
+    Parameters whose names match common secret patterns are automatically redacted.
+    """
     try:
         sig = inspect.signature(fn)
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
-        return dict(bound.arguments)
+        return {
+            k: "***REDACTED***" if k.lower() in _SENSITIVE_PARAMS else v
+            for k, v in bound.arguments.items()
+        }
     except Exception:
-        return {"args": repr(args), "kwargs": repr(kwargs)}
+        redacted_kwargs = {
+            k: "***REDACTED***" if k.lower() in _SENSITIVE_PARAMS else repr(v)
+            for k, v in kwargs.items()
+        }
+        return {"args": repr(args), "kwargs": redacted_kwargs}
 
 
 def _extract_tokens(result: Any) -> tuple[int | None, int | None]:
@@ -156,7 +172,8 @@ def wrap_tool(
                     return skip.output
                 result = await fn(*args, **kwargs)
                 span.record_output(result)
-                span.is_reexecuted = True
+                if get_replay_context() is not None:
+                    span.is_reexecuted = True
                 return result
 
         @functools.wraps(fn)
@@ -172,7 +189,8 @@ def wrap_tool(
                     return skip.output
                 result = fn(*args, **kwargs)
                 span.record_output(result)
-                span.is_reexecuted = True
+                if get_replay_context() is not None:
+                    span.is_reexecuted = True
                 return result
 
         if asyncio.iscoroutinefunction(fn):
@@ -205,7 +223,8 @@ def wrap_llm(
                     return skip.output
                 result = await fn(*args, **kwargs)
                 span.record_output(result)
-                span.is_reexecuted = True
+                if get_replay_context() is not None:
+                    span.is_reexecuted = True
                 tokens_in, tokens_out = _extract_tokens(result)
                 if tokens_in is not None:
                     span.record_tokens(tokens_in, tokens_out or 0)
@@ -226,7 +245,8 @@ def wrap_llm(
                     return skip.output
                 result = fn(*args, **kwargs)
                 span.record_output(result)
-                span.is_reexecuted = True
+                if get_replay_context() is not None:
+                    span.is_reexecuted = True
                 tokens_in, tokens_out = _extract_tokens(result)
                 if tokens_in is not None:
                     span.record_tokens(tokens_in, tokens_out or 0)

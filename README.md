@@ -175,7 +175,7 @@ crew.kickoff()  # Crew, agent, and task spans captured
 ```
 Your Agent Code
   --> @trace, @wrap_tool, @wrap_llm decorators capture spans
-  --> Async queue --> SQLite (~/.agentlens/traces.db)
+  --> Async queue --> SQLite (./.agentlens/traces.db)
   --> FastAPI serves JSON API + bundled React frontend
   --> localhost:7600
 
@@ -199,7 +199,7 @@ Fork & Replay (Live mode):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AGENTLENS_DB_PATH` | `~/.agentlens/traces.db` | SQLite database path |
+| `AGENTLENS_DB_PATH` | `./.agentlens/traces.db` | SQLite database path (project-local by default) |
 | `AGENTLENS_PORT` | `7600` | Default server port |
 | `AGENTLENS_ENABLED` | `true` | Set `false` to disable tracing (decorators become no-ops) |
 

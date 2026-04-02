@@ -17,6 +17,8 @@ from agentlens.sdk.models import Trace
 
 logger = logging.getLogger("agentlens")
 
+_SHUTDOWN = object()  # Sentinel to signal consumer loop to exit
+
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS traces (
     id TEXT PRIMARY KEY,
@@ -72,22 +74,29 @@ def _safe_json_dumps(obj: Any) -> str | None:
 
 
 def get_db_path() -> Path:
+    """Return the path to the SQLite traces database.
+
+    Priority:
+    1. AGENTLENS_DB_PATH env var (explicit override)
+    2. .agentlens/traces.db in the current working directory (project-local)
+    """
     env_path = os.environ.get("AGENTLENS_DB_PATH")
     if env_path:
         return Path(env_path)
-    return Path.home() / ".agentlens" / "traces.db"
+    return Path.cwd() / ".agentlens" / "traces.db"
 
 
 class Recorder:
     """Async trace writer with background event loop fallback for sync contexts."""
 
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[Trace] = asyncio.Queue()
+        self._queue: asyncio.Queue = asyncio.Queue()
         self._db: aiosqlite.Connection | None = None
         self._consumer_task: asyncio.Task | None = None
         self._bg_loop: asyncio.AbstractEventLoop | None = None
         self._bg_thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        self._shutting_down = False
 
     async def _ensure_db(self) -> aiosqlite.Connection:
         if self._db is None:
@@ -161,11 +170,14 @@ class Recorder:
 
     async def _consumer(self) -> None:
         while True:
-            trace = await self._queue.get()
+            item = await self._queue.get()
+            if item is _SHUTDOWN:
+                self._queue.task_done()
+                break
             try:
-                await self._write_trace(trace)
+                await self._write_trace(item)
             except Exception:
-                logger.warning("Failed to write trace %s", trace.id, exc_info=True)
+                logger.warning("Failed to write trace %s", item.id, exc_info=True)
             finally:
                 self._queue.task_done()
 
@@ -197,10 +209,16 @@ class Recorder:
             bg_loop = self._ensure_bg_loop()
             asyncio.run_coroutine_threadsafe(self.enqueue(trace), bg_loop)
 
+    async def shutdown(self) -> None:
+        """Signal the consumer to stop after processing remaining items."""
+        await self._queue.put(_SHUTDOWN)
+
     def flush_sync(self, timeout: float = 5.0) -> None:
         """Synchronously flush all pending traces (for atexit)."""
+        self._shutting_down = True
         try:
             if self._bg_loop and not self._bg_loop.is_closed():
+                asyncio.run_coroutine_threadsafe(self.shutdown(), self._bg_loop)
                 future = asyncio.run_coroutine_threadsafe(self.flush(), self._bg_loop)
                 future.result(timeout=timeout)
             else:

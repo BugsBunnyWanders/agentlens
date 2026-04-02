@@ -28,6 +28,7 @@ class _SyncWrappedCompletions:
 
     def create(self, **kwargs: Any) -> Any:
         if kwargs.get("stream"):
+            logger.debug("Streaming response for model=%s not traced by AgentLens", kwargs.get("model", "unknown"))
             return self._completions.create(**kwargs)
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
@@ -73,11 +74,12 @@ class _AsyncWrappedCompletions:
 
     async def create(self, **kwargs: Any) -> Any:
         if kwargs.get("stream"):
+            logger.debug("Streaming response for model=%s not traced by AgentLens", kwargs.get("model", "unknown"))
             return await self._completions.create(**kwargs)
         model = kwargs.get("model", "unknown")
         messages = kwargs.get("messages", [])
         async with ensure_trace_async(f"openai-{model}") as trace_ctx:
-            with trace_ctx.span("chat.completions.create", SpanKind.LLM, model=model) as span:
+            async with trace_ctx.span("chat.completions.create", SpanKind.LLM, model=model) as span:
                 span.record_input({"model": model, "messages": serialize_messages(messages)})
                 response = await self._completions.create(**kwargs)
                 span.record_output(safe_serialize(response))
@@ -148,6 +150,7 @@ class _SyncWrappedMessages:
 
     def create(self, **kwargs: Any) -> Any:
         if kwargs.get("stream"):
+            logger.debug("Streaming response for model=%s not traced by AgentLens", kwargs.get("model", "unknown"))
             return self._messages.create(**kwargs)
         model = kwargs.get("model", "unknown")
         msgs = kwargs.get("messages", [])
@@ -191,12 +194,13 @@ class _AsyncWrappedMessages:
 
     async def create(self, **kwargs: Any) -> Any:
         if kwargs.get("stream"):
+            logger.debug("Streaming response for model=%s not traced by AgentLens", kwargs.get("model", "unknown"))
             return await self._messages.create(**kwargs)
         model = kwargs.get("model", "unknown")
         msgs = kwargs.get("messages", [])
         system = kwargs.get("system")
         async with ensure_trace_async(f"anthropic-{model}") as trace_ctx:
-            with trace_ctx.span("messages.create", SpanKind.LLM, model=model) as span:
+            async with trace_ctx.span("messages.create", SpanKind.LLM, model=model) as span:
                 input_data: dict[str, Any] = {
                     "model": model,
                     "messages": serialize_messages(msgs),

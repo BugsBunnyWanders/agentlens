@@ -1,6 +1,6 @@
 """API routes for trace listing, detail, and deletion."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from agentlens.server import db
 
@@ -8,7 +8,11 @@ router = APIRouter(prefix="/api/traces", tags=["traces"])
 
 
 @router.get("")
-async def list_traces(limit: int = 50, offset: int = 0, status: str | None = None):
+async def list_traces(
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    status: str | None = None,
+):
     traces, total = await db.list_traces(limit, offset, status)
     return {"traces": traces, "total": total}
 
